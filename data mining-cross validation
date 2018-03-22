@@ -1,0 +1,59 @@
+#載入資料以及會用到的套件
+from sklearn.ensemble import GradientBoostingClassifier
+import pandas as pd
+import numpy as np
+from sklearn.metrics import roc_curve,auc
+from sklearn.metrics import accuracy_score
+import statistics
+df=pd.read_csv('C:\\Users\\User\\Desktop\\data.csv')
+
+#做資料處理：將用不到的資料拿走，並將會使用到的資料做虛擬變數處理
+df = df.replace(' ?','0')
+df.drop('education',axis=1,inplace=True)
+df = pd.get_dummies(df,columns=["workclass"],drop_first=True)
+df = pd.get_dummies(df,columns=["marital_status"],drop_first=True)
+df = pd.get_dummies(df,columns=["occupation"],drop_first=True)
+df = pd.get_dummies(df,columns=["relationship"],drop_first=True)
+df = pd.get_dummies(df,columns=["race"],drop_first=True)
+df = pd.get_dummies(df,columns=["sex"],drop_first=True)
+df = pd.get_dummies(df,columns=["native_country"],drop_first=True)
+
+#做資料處理：將剩餘未處理且會用到的資料做虛擬變數分類
+df.loc[df['age']<30,'age']=0
+df.loc[np.logical_and(df.age >= 30, df.age < 50) ,'age']=1
+df.loc[df['age']>=50,'age']=2
+df.loc[df['capital_gain']>0,'capital_gain']=1
+df.loc[df['capital_loss']>0,'capital_loss']=1
+df.loc[df['fnlwgt']<100000,'fnlwgt']=0
+df.loc[np.logical_and(df.fnlwgt >= 100000, df.fnlwgt < 200000) ,'fnlwgt']=1
+df.loc[df['fnlwgt']>=200000,'fnlwgt']=2
+df['income'] = np.where(df['income']==' >50K',1,0)
+
+#Y為Label
+y = df[['income']]
+x = pd.concat([df.iloc[:,0:5],df.iloc[:,7:]],axis = 1)
+z=[]
+
+#K-fold-CV function
+def K_fold_CV(k, data):
+    subset_size=len(data)//k
+    acc=0
+    for i in range(k):
+        x_test = x[i*subset_size:][:subset_size]
+        x_train= x[:i*subset_size].append(x[(i+1)*subset_size:])
+        
+        y_test = y[i*subset_size:][:subset_size]
+        y_train= y[:i*subset_size].append(y[(i+1)*subset_size:])
+        
+        gbc = GradientBoostingClassifier(learning_rate=0.01,max_depth=8,n_estimators=100).fit(x_train, y_train)
+      
+        acc=gbc.score(x_test, y_test)
+        
+        z.append(acc)
+        print("accuracy: %r" % acc)
+        print("\n z %r" % z)
+
+#計算資料準確率平均        
+K_fold_CV(10, pd.concat([X,y],axis=1))
+print("mean accuracy: %r" % statistics.mean(z))
+
